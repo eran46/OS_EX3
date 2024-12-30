@@ -104,13 +104,13 @@ void run_client() {
         if (strncmp(message, "@", 1) == 0) {
             // whisper message format: @friend message
             if (send(sock, message, strlen(message), 0) < 0) {
-                perror("Send to server failed"");
+                perror("Send to server failed");
                 break;
             }
         } else {
             // normal message
             if (send(sock, message, strlen(message), 0) < 0) {
-                perror("Send to server failed"");
+                perror("Send to server failed");
                 break;
             }
         }
