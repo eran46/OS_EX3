@@ -41,3 +41,13 @@ int bind_socket_to_addr(int socket,struct sockaddr_in *server_address){
     return 0;
 }
 
+void reap_zombies(int sig) {
+    (void)sig; // stop unused parameter warning
+    int waitpid_ret_status;
+    
+    while ((waitpid_ret_status = waitpid(-1, NULL, WNOHANG)) > 0); // reap all current zombie proccesses
+    if((waitpid_ret_status == -1 && errno != ECHILD){ // error on waitpid and not error-from-no-waiting-zombie-process
+                printf("failed to reap zombie client process. (waitpid())\n");
+    }
+}
+
