@@ -68,49 +68,38 @@ void handle_client_thread(Client* client) { // fix changed to client struct
 			if (send(*client_socket, buffer, bytes_received, 0) < 0) {
             			perror("send");
         		}
+        		
 			remove_client(client->client_index);
 			printf("client %s disconnected\n", client.client_name);
 			break;
 		case (0): // text
+			echo_msg_to_clients(client, buffer);
 		
 		break;
 		default: // whisper
+			
 			char dest_name[msg_type + 1];
-			strncpy(dest_name, buffer + 1, msg_type); // read after @, msg_type characters
-			dest_name[msg_type] = 0; // ensure null terminat
+			strncpy(dest_name, buffer + 1, msg_type); // parse destination client name
+			dest_name[msg_type] = 0; // ensure null termination
 			
-			int dest_index = find_client_index_by_name(dest_name);
-			char out_message[strlen(buffer)+ msg_type + 2]
+			// prepare out_message to be sent to destination client
+			char out_message[strlen(buffer)+ strlen(client.client_name) + 2] // ": " + buffer length + source name length
+			char* src_msg_addition[strlen(client.client_name) + 2 + 1] // ": " + source name length
+			sprintf(src_msg_addition, "%s: ", client.client_name);
+			strncpy(out_message, src_msg_addition);
+			strncpy(out_message + strlen(src_msg_addition), buffer);
 			
-			pthread_mutex_lock(&clients_mutex); 
-			
-			if (send(clients[reciever_index]->client_socket, buffer, bytes_received, 0) < 0) {
-            			perror("send");
+			pthread_mutex_lock(&clients_mutex);  // accessing clients - critical region
+			int dest_index = find_client_index_by_name(dest_name); // get destination client index in clients
+			if (send(clients[dest_index]->client_socket, out_message, strlen(out_message), 0) < 0) {
+            			printf("failed to send message from %s to client %s\n", client.client_name, dest_name);
         		}
-			remove_client(client->client_index);
-			printf("client %s disconnected\n", client.client_name);
-			
 			pthread_mutex_unlock(&clients_mutex);
+			
 			break;
-		
-		break;
 	}
-        
-        
-        
-        
     }
-
-    if (bytes_received == 0) { // Disconnect/exit
-        
-        
-        // on client disconnecting
-        
-        
-    } else {
-        perror("recv");
-    }
-
+    
     // Clean up happens in remove_client()
     
     // terminate child process
