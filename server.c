@@ -191,7 +191,6 @@ int main(int argc, char* argv[]){
         return 1;
     }
     
-    printf("Server started.\n");
     run_server(server_socket);
     
     // cleanup
