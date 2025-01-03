@@ -28,3 +28,10 @@ void *receive_messages(void *socket_desc) {
     return NULL;
 }
 
+
+void clean_exit(int sock, pthread_t thread) {
+    close(sock);
+    pthread_cancel(thread);
+    pthread_join(thread, NULL);
+    exit(EXIT_FAILURE);
+}
