@@ -10,11 +10,11 @@
 
 int incorrect_arg_num(int argc){
     if(argc < 2){
-    	printf("Wrong number of arguments. (missing port)");
+    	printf("Wrong number of arguments. (missing port)\n");
     	return 1;
     }
     else if(argc > 2){
-    	printf("Wrong number of arguments. (too many arguments)");
+    	printf("Wrong number of arguments. (too many arguments)\n");
     	return 1;
     }
     return 0;
@@ -39,7 +39,7 @@ struct sockaddr_in init_server_address(int port, char* server_ip_str){
 
 int bind_socket_to_addr(int socket,struct sockaddr_in *server_address){
     if(bind(socket, (struct sockaddr*)server_address, sizeof(*server_address)) == -1){ // bind failed
-    	printf("binding socket to server address failed");
+    	printf("binding socket to server address failed\n");
     	return -1;
     }
     return 0;
@@ -62,6 +62,7 @@ int is_clients_full() {
 }
 
 // insert a new client into the clients array, trust there is room
+// clients still have no name when inserted to clients !!
 int insert_client(Client* new_client) {
     // Find an empty slot and insert the client
     pthread_mutex_lock(&clients_mutex);
@@ -118,11 +119,10 @@ int check_message_type(const char *input_string) {
         // A MESSAGE @name or 
         // check for space after the name and text afterwards
         if (input_string[i] == ' ' && input_string[i + 1] != '\0') {
-            return i;
+            return i-1;
         }
     }
     
-    // Default case: if none of the above, return 1 for any other text
     return 0;
 }
 

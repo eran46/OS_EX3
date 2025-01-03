@@ -18,7 +18,9 @@ pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t clients_cond = PTHREAD_COND_INITIALIZER;
 
 void* handle_client_thread(void* arg) { // fix changed to client struct
-    Client* client = (Client*)arg;
+    // Client* client = (Client*)arg;
+    int client_index = *(int*)arg;
+    free(arg);
     char buffer[BUFFER_SIZE];
     int bytes_received;
     
@@ -26,32 +28,35 @@ void* handle_client_thread(void* arg) { // fix changed to client struct
     socklen_t str_size = INET_ADDRSTRLEN; // INET_ADDRSTRLEN = maximum length of a string representation of an IPv4 address, including the null terminator
     char client_ip[str_size]; // human readable IPv4 string
     
-    inet_ntop(AF_INET, &(client->client_address->sin_addr), client_ip, str_size); // convert binary IPv4 to human-readable string
+    inet_ntop(AF_INET, &(clients[client_index]->client_address->sin_addr), client_ip, str_size); // convert binary IPv4 to human-readable string
         // AF_INET = IPv4, output to client_ip
     
     // get client name
-    bytes_received = recv(client->client_socket, buffer, BUFFER_SIZE - 1, 0); // blocking call untill name is recieved
+    bytes_received = recv(clients[client_index]->client_socket, buffer, BUFFER_SIZE - 1, 0); // blocking call untill name is recieved
     buffer[bytes_received] = '\0'; 
     
     int client_name_ln = strlen(buffer); // actual length of name
     char* client_name = (char*)malloc(client_name_ln + 1); // +1 for null terminator
     if (client_name == NULL) {
-        printf("failed to allocate memory for client_name");
-        remove_client(client->client_index);
+        printf("failed to allocate memory for client_name\n");
+        remove_client(client_index);
     }
 
     strncpy(client_name, buffer, client_name_ln);
+    
+    printf("[client_name(handle): %s]\n",client_name); // DEBUG
+    
     client_name[client_name_ln] = '\0'; // ensure null termination
-    client->client_name = client_name; // save client name
+    clients[client_index]->client_name = client_name; // save client name
     
     // print client name and ip
     if (bytes_received > 0) {
         buffer[bytes_received] = '\0'; // avoids reading the whole buffer by accident
-        printf("client %s connected from %s\n", client->client_name, client_ip);
+        printf("client %s connected from %s\n", clients[client_index]->client_name, client_ip);
         
     } else {
         printf("failed to receive client name from %s, removing client. (recv())\n", client_ip);
-        remove_client(client->client_index);
+        remove_client(client_index);
         return NULL;
     }
     
@@ -59,12 +64,12 @@ void* handle_client_thread(void* arg) { // fix changed to client struct
     
     // server message recieve loop
     while (1) { 
-    	bytes_received = recv(client->client_socket, buffer, BUFFER_SIZE - 1, 0); // get message
+    	bytes_received = recv(clients[client_index]->client_socket, buffer, BUFFER_SIZE - 1, 0); // get message
         buffer[bytes_received] = '\0'; // null terminate the received data
         
         
         // calculate size of sent message
-	size_t src_len = strlen(client->client_name);
+	size_t src_len = strlen(clients[client_index]->client_name);
 	size_t buffer_len = strlen(buffer);
 	size_t out_message_len = src_len + buffer_len + 3; // ": " + null terminator
 	
@@ -72,7 +77,7 @@ void* handle_client_thread(void* arg) { // fix changed to client struct
 	char out_message[out_message_len];
 
 	// format the message
-	snprintf(out_message, out_message_len, "%s: %s", client->client_name, buffer);
+	snprintf(out_message, out_message_len, "%s: %s", clients[client_index]->client_name, buffer);
 	
 	/* 
 	msg_type:
@@ -83,29 +88,39 @@ void* handle_client_thread(void* arg) { // fix changed to client struct
 	*/
 	int msg_type = check_message_type(buffer);
 	
+	printf("[buffer: %s]\n", buffer); //DEBUG
+			
 	switch(msg_type){ 
 		case (-1): // exit
-			echo_msg_to_all_clients(client, out_message); // echo the exit message to all the current clients
+			echo_msg_to_all_clients(clients[client_index], out_message); // echo the exit message to all the current clients
         		
-			remove_client(client->client_index); // remove the client from clients + close socket + free memory
-			printf("client %s disconnected\n", client->client_name);
+			remove_client(client_index); // remove the client from clients + close socket + free memory
+			printf("client %s disconnected\n", clients[client_index]->client_name);
 			break;
 		case (0): // text
 			// echo the message to all the current clients
-			echo_msg_to_all_clients(client, out_message);
+			echo_msg_to_all_clients(clients[client_index], out_message);
 			break;
 		default: // whisper
-			char dest_name[msg_type + 1]; // get destination client's name
+			char dest_name[msg_type+1]; // get destination client's name
+			
+			printf("[msg_type: %d]\n", msg_type); //DEBUG
+			
 			strncpy(dest_name, buffer + 1, msg_type); // parse destination client name
 			dest_name[msg_type] = 0; // ensure null termination
+			
+			printf("[dest_name: %s]\n",dest_name); // DEBUG
 			
 			pthread_mutex_lock(&clients_mutex);  // accessing clients - critical region
 			int dest_index;
 			if ((dest_index = find_client_index_by_name(dest_name)) == -1){ // get destination client index in clients
 				printf("failed to find destination client. (find_client_index_by_name()).\n");
+				pthread_mutex_unlock(&clients_mutex);
+				continue;
+				
 			}
 			if (send(clients[dest_index]->client_socket, out_message, strlen(out_message), 0) < 0) {
-            			printf("failed to send message from %s to client %s. (send())\n", client->client_name, dest_name);
+            			printf("failed to send message from %s to client %s. (send())\n", clients[client_index]->client_name, dest_name);
         		}
 			pthread_mutex_unlock(&clients_mutex);
 			
@@ -137,18 +152,25 @@ void run_server(int server_socket){
     			continue; // continue listening
 		}
 		
-		int client_index;
-		if ((client_index = insert_client(new_client)) == -1) {
+		int* client_index;
+		if((client_index = (int*)malloc(sizeof(int))) == NULL){
+			printf("failed to allocate memory for client_index.\n");
+			close(new_client->client_socket);
+			free_client_mem(new_client);
+		}
+		
+		if ((*client_index = insert_client(new_client)) == -1) {
 			printf("failed to register new client. (insert_client())\n");
 			close(new_client->client_socket);
 			free_client_mem(new_client);
 		}
-		new_client->client_index = client_index; // save client insertion index in clients
+		
+		clients[*client_index]->client_index = *client_index; // save client insertion index in clients
 		
 		// --------- server connected to client ---------->
 		
 		pthread_t client_thread;
-		if (pthread_create(&client_thread, NULL, handle_client_thread, (void*)clients[client_index]) != 0) {
+		if (pthread_create(&client_thread, NULL, handle_client_thread, (void*)client_index) != 0) {
 			printf("Failed to create thread for client. (pthread_create())\n");
 			remove_client(new_client->client_index); // cleans up socket and memory
 			continue;
