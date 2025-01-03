@@ -60,7 +60,7 @@ int main(int argc, char *argv[]) {   //run client
     }
     
 
-   while (!terminate) { {
+   while (!terminate) { 
  
         // get user input
         //-----option-----printf("Enter normal message or whisper message or type '!exit' to quit\n");
