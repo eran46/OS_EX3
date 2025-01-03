@@ -60,7 +60,7 @@ int main(int argc, char *argv[]) {   //run client
     }
     
 
-    while (1) {
+   while (!terminate) { 
  
         // get user input
         //-----option-----printf("Enter normal message or whisper message or type '!exit' to quit\n");
@@ -76,14 +76,14 @@ int main(int argc, char *argv[]) {   //run client
         }
 	
 	
-        //!exit command
-        if (strcmp(message, "!exit") == 0) {
-            if (send(sock, message, strlen(message), 0) < 0) {
-                perror("Send !exit function from the server failed");
-                clean_exit(sock, recv_thread);
-            }
-            printf("Client exiting\n");
-            clean_exit(sock, recv_thread);
+        //exit command
+        if (strcmp(message, "!exit") == 0) { 
+    		if (send(sock, message, strlen(message), 0) < 0) {//inform server message problem 
+        		perror("Failed to send !exit message to the server");
+    		}
+            	printf("Client exiting\n");
+            	clean_exit(sock, recv_thread);
+
         }
 
 
