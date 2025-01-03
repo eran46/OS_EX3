@@ -44,7 +44,6 @@ void* handle_client_thread(void* arg) { // fix changed to client struct
 
     strncpy(client_name, buffer, client_name_ln);
     
-    printf("[client_name(handle): %s]\n",client_name); // DEBUG
     
     client_name[client_name_ln] = '\0'; // ensure null termination
     clients[client_index]->client_name = client_name; // save client name
@@ -89,7 +88,6 @@ void* handle_client_thread(void* arg) { // fix changed to client struct
 	*/
 	int msg_type = check_message_type(buffer);
 	
-	printf("[buffer: %s]\n", buffer); //DEBUG
 			
 	switch(msg_type){ 
 		case (-1): // exit
@@ -105,12 +103,10 @@ void* handle_client_thread(void* arg) { // fix changed to client struct
 		default: // whisper
 			char dest_name[msg_type+1]; // get destination client's name
 			
-			printf("[msg_type: %d]\n", msg_type); //DEBUG
 			
 			strncpy(dest_name, buffer + 1, msg_type); // parse destination client name
 			dest_name[msg_type] = 0; // ensure null termination
 			
-			printf("[dest_name: %s]\n",dest_name); // DEBUG
 			
 			pthread_mutex_lock(&clients_mutex);  // accessing clients - critical region
 			int dest_index;
