@@ -161,12 +161,14 @@ void run_server(int server_socket){
 
 int main(int argc, char* argv[]){
     
+    // localhost ip for testing
+    char server_ip[16] = "127.0.0.1"; // SERVER IP
+    
     if(incorrect_arg_num(argc)){ // check bad argument number
     	return 1;
     }
     
     int port = atoi(argv[1]); // server port
-    // TODO: check bad port?
     
     // initialize socket
     int server_socket; 
@@ -176,9 +178,9 @@ int main(int argc, char* argv[]){
     }
     
     // struct sockaddr -> generic, struct sockaddr_in -> IPv4
-    struct sockaddr_in server_address = init_server_address(port); // initialize the server address
+    struct sockaddr_in server_address = init_server_address(port, server_ip); // initialize the server address
     
-    if(bind_socket_to_addr(server_socket, server_address)){ // bind socket to server address
+    if(bind_socket_to_addr(server_socket, &server_address)){ // bind socket to server address
     	close(server_socket);
     	return 1;
     }

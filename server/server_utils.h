@@ -23,8 +23,9 @@ extern pthread_cond_t clients_cond;
 
 int incorrect_arg_num(int argc);
 void free_client_mem(Client* client);
+struct sockaddr_in init_server_address(int port, char* server_ip_str);
 int bind_socket_to_addr(int socket,struct sockaddr_in *server_address);
-void init_clients(Client* clients);
+void init_clients(Client** clients);
 int is_clients_full();
 int insert_client(Client* new_client);
 void remove_client(int index);
