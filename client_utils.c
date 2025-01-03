@@ -7,6 +7,8 @@
 
 #define BUFFER_SIZE 1024
 
+extern int terminate;
+
 void *receive_messages(void *socket_desc) {
     int sock = *(int *)socket_desc;
     char buffer[BUFFER_SIZE];

@@ -94,7 +94,7 @@ void* handle_client_thread(void* arg) { // fix changed to client struct
 			echo_msg_to_all_clients(clients[client_index], out_message); // echo the exit message to all the current clients
         		printf("client %s disconnected\n", clients[client_index]->client_name);
 			remove_client(client_index); // remove the client from clients + close socket + free memory
-			exit(EXIT_SUCCESS);
+			pthread_exit(NULL); // exit thread - NOT PROCESS
 			break;
 		case (0): // text
 			// echo the message to all the current clients

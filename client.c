@@ -8,6 +8,7 @@
 #include "client_utils.h"
 #define BUFFER_SIZE 1024 //size of buffers for sending and receiving messages in bytes
     
+int terminate = 0;
 
 int main(int argc, char *argv[]) {   //run client
     
