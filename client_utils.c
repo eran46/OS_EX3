@@ -21,7 +21,7 @@ void *receive_messages(void *socket_desc) {
         } 
 
         buffer[bytes_received] = '\0'; // null-terminate the buffer
-        printf("%s", buffer);
+        printf("%s\n", buffer);
         fflush(stdout); // ensure the output is flushed to the console
     }
 
@@ -31,7 +31,6 @@ void *receive_messages(void *socket_desc) {
 
 void clean_exit(int sock, pthread_t thread) {
     close(sock);
-    pthread_cancel(thread);
     pthread_join(thread, NULL);
     exit(EXIT_FAILURE);
 }

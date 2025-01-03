@@ -65,6 +65,7 @@ void* handle_client_thread(void* arg) { // fix changed to client struct
     // server message recieve loop
     while (1) { 
     	bytes_received = recv(clients[client_index]->client_socket, buffer, BUFFER_SIZE - 1, 0); // get message
+    	
         buffer[bytes_received] = '\0'; // null terminate the received data
         
         
@@ -93,9 +94,9 @@ void* handle_client_thread(void* arg) { // fix changed to client struct
 	switch(msg_type){ 
 		case (-1): // exit
 			echo_msg_to_all_clients(clients[client_index], out_message); // echo the exit message to all the current clients
-        		
+        		printf("client %s disconnected\n", clients[client_index]->client_name);
 			remove_client(client_index); // remove the client from clients + close socket + free memory
-			printf("client %s disconnected\n", clients[client_index]->client_name);
+			exit(EXIT_SUCCESS);
 			break;
 		case (0): // text
 			// echo the message to all the current clients
@@ -114,7 +115,11 @@ void* handle_client_thread(void* arg) { // fix changed to client struct
 			pthread_mutex_lock(&clients_mutex);  // accessing clients - critical region
 			int dest_index;
 			if ((dest_index = find_client_index_by_name(dest_name)) == -1){ // get destination client index in clients
-				printf("failed to find destination client. (find_client_index_by_name()).\n");
+				// printf("failed to find destination client. (find_client_index_by_name()).\n");
+				char return_msg[29] = "Server couldn't find client.";
+				if(send(clients[client_index]->client_socket, return_msg, strlen(return_msg), 0) < 0){
+					printf("failed to send error message to %s. (send())\n", clients[client_index]->client_name);
+				}
 				pthread_mutex_unlock(&clients_mutex);
 				continue;
 				

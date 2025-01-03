@@ -82,8 +82,8 @@ void remove_client(int index) {
 	pthread_mutex_lock(&clients_mutex); 
 	close(clients[index]->client_socket); // close client socket
 	free_client_mem(clients[index]); // free dynamically allocated memory
-	clients[index] = NULL;
-	pthread_cond_signal(&clients_cond);
+	clients[index] = NULL; // free up client cell
+	pthread_cond_signal(&clients_cond); // signal server to accept new clients
 	pthread_mutex_unlock(&clients_mutex);
 }
 
