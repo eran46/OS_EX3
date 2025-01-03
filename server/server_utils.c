@@ -21,13 +21,6 @@ void free_client_mem(Client* client){
 	free(client);
 }
 
-void init_server_socket(int port){
-    if ((server_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) { // IPv4, Stream Socket, 0=default=TCP
-        printf("Socket creation failed");
-        return 1;
-    }
-    return server_socket;
-}
 
 int bind_socket_to_addr(int socket,struct sockaddr_in *server_address){
     if(bind(socket, (struct sockaddr_in*)server_address, sizeof(*server_address) == -1){ // bind failed
@@ -54,7 +47,7 @@ int is_clients_full() {
 }
 
 // insert a new client into the clients array, trust there is room
-int insert_client(Client new_client) {
+int insert_client(Client* new_client) {
     // Find an empty slot and insert the client
     pthread_mutex_lock(&clients_mutex);
     for (int i = 0; i < MAX_CONNECTED_CLIENTS; i++) {

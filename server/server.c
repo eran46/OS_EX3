@@ -7,7 +7,7 @@
 #include <signal.h> // signals
 #include <string.h>
 #include <stdlib.h>
-
+#include <stdio.h>
 
 
 // clients array
@@ -17,8 +17,8 @@ Client* clients[MAX_CONNECTED_CLIENTS] = {0};
 pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t clients_cond = PTHREAD_COND_INITIALIZER;
 
-
-void handle_client_thread(Client* client) { // fix changed to client struct
+void* handle_client_thread(void* arg) { // fix changed to client struct
+    Client* client = (Client*)arg;
     char buffer[BUFFER_SIZE];
     int bytes_received;
     
@@ -26,7 +26,7 @@ void handle_client_thread(Client* client) { // fix changed to client struct
     socklen_t str_size = INET_ADDRSTRLEN; // INET_ADDRSTRLEN = maximum length of a string representation of an IPv4 address, including the null terminator
     char client_ip[str_size]; // human readable IPv4 string
     
-    inet_ntop(AF_INET, ntohs(client->client_address->sin_addr), client_ip, str_size); // ensure correct Endiannes and convert binary IPv4 to human-readable string
+    inet_ntop(AF_INET, &(client->client_address->sin_addr), client_ip, str_size); // convert binary IPv4 to human-readable string
         // AF_INET = IPv4, output to client_ip
     
     // get client name
@@ -47,7 +47,7 @@ void handle_client_thread(Client* client) { // fix changed to client struct
     // print client name and ip
     if (bytes_received > 0) {
         buffer[bytes_received] = '\0'; // avoids reading the whole buffer by accident
-        printf("client %s connected from %s\n", client.client_name, client_ip);
+        printf("client %s connected from %s\n", client->client_name, client_ip);
         
     } else {
         printf("failed to receive client name from %s, removing client. (recv())\n", client_ip);
@@ -59,12 +59,12 @@ void handle_client_thread(Client* client) { // fix changed to client struct
     
     // server message recieve loop
     while (1) { 
-    	bytes_received = recv(client->client_socket, buffer, BUFFER_SIZE - 1, 0) // get message
+    	bytes_received = recv(client->client_socket, buffer, BUFFER_SIZE - 1, 0); // get message
         buffer[bytes_received] = '\0'; // null terminate the received data
         
         
         // calculate size of sent message
-	size_t src_len = strlen(client.client_name);
+	size_t src_len = strlen(client->client_name);
 	size_t buffer_len = strlen(buffer);
 	size_t out_message_len = src_len + buffer_len + 3; // ": " + null terminator
 	
@@ -72,7 +72,7 @@ void handle_client_thread(Client* client) { // fix changed to client struct
 	char out_message[out_message_len];
 
 	// format the message
-	snprintf(out_message, out_message_len, "%s: %s", client.client_name, buffer);
+	snprintf(out_message, out_message_len, "%s: %s", client->client_name, buffer);
 	
 	/* 
 	msg_type:
@@ -81,14 +81,14 @@ void handle_client_thread(Client* client) { // fix changed to client struct
 	(0) = any text mode.
 	o.w = whisper mode, *and the value is the length of the recipient's name*
 	*/
-	msg_type = check_message_type(buffer);
+	int msg_type = check_message_type(buffer);
 	
 	switch(msg_type){ 
 		case (-1): // exit
 			echo_msg_to_all_clients(client, out_message); // echo the exit message to all the current clients
         		
 			remove_client(client->client_index); // remove the client from clients + close socket + free memory
-			printf("client %s disconnected\n", client.client_name);
+			printf("client %s disconnected\n", client->client_name);
 			break;
 		case (0): // text
 			// echo the message to all the current clients
@@ -100,9 +100,12 @@ void handle_client_thread(Client* client) { // fix changed to client struct
 			dest_name[msg_type] = 0; // ensure null termination
 			
 			pthread_mutex_lock(&clients_mutex);  // accessing clients - critical region
-			int dest_index = find_client_index_by_name(dest_name); // get destination client index in clients
+			int dest_index;
+			if ((dest_index = find_client_index_by_name(dest_name)) == -1){ // get destination client index in clients
+				printf("failed to find destination client. (find_client_index_by_name()).\n");
+			}
 			if (send(clients[dest_index]->client_socket, out_message, strlen(out_message), 0) < 0) {
-            			printf("failed to send message from %s to client %s. (send())\n", client.client_name, dest_name);
+            			printf("failed to send message from %s to client %s. (send())\n", client->client_name, dest_name);
         		}
 			pthread_mutex_unlock(&clients_mutex);
 			
@@ -123,8 +126,8 @@ void run_server(int server_socket){
 	    	}
 	    	pthread_mutex_unlock(&clients_mutex);
 		
-		Client new_client = (Client*)malloc(sizeof(Client));
-		new_client.client_address = (struct sockaddr_in*)malloc(sizeof(struct sockaddr_in)); // create client sockaddr_in object *pointer*
+		Client* new_client = (Client*)malloc(sizeof(Client));
+		new_client->client_address = (struct sockaddr_in*)malloc(sizeof(struct sockaddr_in)); // create client sockaddr_in object *pointer*
 		socklen_t client_len = sizeof(struct sockaddr_in); // size of client_address
 	    
 		new_client->client_socket = accept(server_socket, (struct sockaddr*)new_client->client_address, &client_len); // blocking call, creates new client_socket from stream, binds to client_address
@@ -135,17 +138,17 @@ void run_server(int server_socket){
 		}
 		
 		int client_index;
-		if ((client_index = insert_client(new_client)) != 0) {
+		if ((client_index = insert_client(new_client)) == -1) {
 			printf("failed to register new client. (insert_client())\n");
 			close(new_client->client_socket);
 			free_client_mem(new_client);
 		}
-		client->client_index = client_index; // save client insertion index in clients
+		new_client->client_index = client_index; // save client insertion index in clients
 		
 		// --------- server connected to client ---------->
 		
 		pthread_t client_thread;
-		if (pthread_create(&client_thread, NULL, handle_client_thread, clients[client_index]) != 0) {
+		if (pthread_create(&client_thread, NULL, handle_client_thread, (void*)clients[client_index]) != 0) {
 			printf("Failed to create thread for client. (pthread_create())\n");
 			remove_client(new_client->client_index); // cleans up socket and memory
 			continue;
@@ -158,14 +161,19 @@ void run_server(int server_socket){
 
 int main(int argc, char* argv[]){
     
-    if(incorrect_arg_num()){ // check bad argument number
+    if(incorrect_arg_num(argc)){ // check bad argument number
     	return 1;
     }
     
     int port = atoi(argv[1]); // server port
     // TODO: check bad port?
     
-    int server_socket = init_server_socket(port); // initialize socket
+    // initialize socket
+    int server_socket; 
+    if ((server_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) { // IPv4, Stream Socket, 0=default=TCP
+        printf("Socket creation failed");
+        return 1;
+    }
     
     // struct sockaddr -> generic, struct sockaddr_in -> IPv4
     struct sockaddr_in server_address = init_server_address(port); // initialize the server address
