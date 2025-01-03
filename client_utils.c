@@ -21,7 +21,7 @@ void *receive_messages(void *socket_desc) {
         } 
 
         buffer[bytes_received] = '\0'; // null-terminate the buffer
-        printf("\nServer: %s\n", buffer);
+        printf("%s", buffer);
         fflush(stdout); // ensure the output is flushed to the console
     }
 

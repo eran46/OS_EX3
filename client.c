@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {   //run client
         //!exit command
         if (strcmp(message, "!exit") == 0) {
             if (send(sock, message, strlen(message), 0) < 0) {
-                perror("Send !exit to the server failed");
+                perror("Send !exit function from the server failed");
                 clean_exit(sock, recv_thread);
             }
             printf("Client exiting\n");
