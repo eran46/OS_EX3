@@ -65,15 +65,15 @@ int main(int argc, char *argv[]) {   //run client
         // get user input
         //-----option-----printf("Enter normal message or whisper message or type '!exit' to quit\n");
         
+        // handaling NULL input
+        if (fgets(message, BUFFER_SIZE, stdin) != NULL) {
+            message[strcspn(message, "\n")] = 0; // Remove newline character
+        } 
         
-        fgets(message, BUFFER_SIZE, stdin);
-        message[strcspn(message, "\n")] = 0; // remove newline character
-        
-        
-        if (fgets(message, BUFFER_SIZE, stdin) == NULL) {
-            perror("Error reading input or empty input- try again");
+        else 	{
+            perror("Error reading input or empty input - try again");
             continue;
-	}
+        }
 	
 	
         //exit command
@@ -83,6 +83,7 @@ int main(int argc, char *argv[]) {   //run client
     		}
             	printf("Client exiting\n");
             	clean_exit(sock, recv_thread);
+
         }
 
 
